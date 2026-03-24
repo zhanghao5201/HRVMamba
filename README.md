@@ -1,5 +1,5 @@
-# PoseVMamba
-About the repo for paper: Efficient High-Resolution Visual Representation Learning with State Space Model for Human Pose Estimation.
+# HRVMamba
+About the repo for paper: HRVMamba: Efficient High-Resolution Visual Representation Learning with State Space Model for Human Pose Estimation.
 
 ## **News**
 2025/08/07 Code and model checkpoints are open source.
@@ -7,16 +7,20 @@ About the repo for paper: Efficient High-Resolution Visual Representation Learni
 
 ## **Abstract**
 
-Capturing long-range dependencies while preserving high-resolution visual representations is crucial for dense prediction tasks such as human pose estimation. Vision Transformers (ViTs) have advanced global modeling through self-attention but suffer from quadratic computational complexity with respect to token count, limiting their efficiency and scalability to high-resolution inputs, especially on mobile and resource-constrained devices.
-State Space Models (SSMs), exemplified by Mamba, offer an efficient alternative by combining global receptive fields with linear computational complexity, enabling scalable and resource-friendly sequence modeling. However, when applied to dense prediction tasks, existing visual SSMs face key limitations: weak spatial inductive bias, long-range forgetting from hidden state decay, and low-resolution outputs that hinder fine-grained localization.
-To address these issues, we propose the Dynamic Visual State Space (DVSS) block, which augments visual state space models with multi-scale convolutional operations to enhance local spatial representations and strengthen spatial inductive biases. Through architectural exploration and theoretical analysis, we incorporate deformable operation into the DVSS block, identifying it as an efficient and effective mechanism to enhance semantic aggregation and mitigate long-range forgetting via input-dependent, adaptive spatial sampling.
-We embed DVSS into a multi-branch high-resolution architecture to build HRVMamba, a novel model for efficient high-resolution representation learning. Extensive experiments on human pose estimation, image classification, and semantic segmentation show that HRVMamba performs competitively against leading CNN-, ViT-, and SSM-based baselines.
+Capturing long-range dependencies while preserving high-resolution visual representations is crucial for dense prediction tasks such as human pose estimation. Vision Transformers (ViTs) have advanced global modeling through self-attention but suffer from quadratic computational complexity with respect to the token count, limiting their efficiency and scalability for high-resolution representations, especially on mobile and resource-constrained devices.
+State Space Models (SSMs), exemplified by Mamba, offer an efficient alternative by combining global receptive fields with linear computational complexity, enabling scalable and computationally efficient sequence modeling. 
+However, when applied to dense prediction tasks, existing visual SSMs face several key limitations: weak spatial inductive bias, long-range forgetting caused by hidden state decay, and low-resolution feature outputs that hinder fine-grained prediction.
+To address these issues, we propose the Dynamic Visual State Space (DVSS) block, 
+which augments visual state space models with multi-scale convolutions and deformable operations. Multi-scale convolutions strengthen spatial inductive bias and enhance local feature extraction. 
+Through architectural exploration and theoretical analysis, we identify deformable operations as an effective mechanism for aggregating distant yet relevant features, thereby mitigating long-range forgetting.
+DVSS is then embedded into a multi-branch high-resolution architecture to build \textbf{HRVMamba}, enabling efficient high-resolution representation learning.
+Extensive experiments on human pose estimation, image classification, and semantic segmentation demonstrate that HRVMamba performs competitively against leading CNN-, ViT-, and SSM-based baselines.
 
 ## Getting Started
-The steps to create env, train and evaluate HRVMamba of PoseVMamba models：
+The steps to create env, train and evaluate HRVMamba models：
 
 ```
-conda create -n PoseVMamba python=3.10.13
+conda create -n HRVMamba python=3.10.13
 pip install torch==2.1.1 torchvision==0.16.1 torchaudio==2.1.1 --index-url https://download.pytorch.org/whl/cu118  
 pip install -U openmim  mim install mmengine 
 mim install "mmcv==2.1.0"
@@ -24,24 +28,24 @@ mim install "mmdet>=3.1.0"
 pip install mmpose==1.3.1
 pip install "mmsegmentation>=1.0.0"
 
-cd PoseVMamba/pose_estimation/DCNv4_op
+cd HRVMamba/pose_estimation/DCNv4_op
 python setup.py build install
 
-cd PoseVMamba/pose_estimation
+cd HRVMamba/pose_estimation
 python setup.py build install
 ```
 
 
 ## Prepare datasets
 
-It is recommended to symlink the dataset root to `$PoseVMamba/data`.
+It is recommended to symlink the dataset root to `$HRVMamba/data`.
 If your folder structure is different, you may need to change the corresponding paths in config files.
 
 **For COCO data**, please download from [COCO download](http://cocodataset.org/#download), 2017 Train/Val is needed for COCO keypoints training and validation. [HRNet-Human-Pose-Estimation](https://github.com/HRNet/HRNet-Human-Pose-Estimation) provides person detection result of COCO val2017 to reproduce our multi-person pose estimation results. Please download from [OneDrive](https://1drv.ms/f/s!AhIXJn_J-blWzzDXoz5BeFl8sWM-)
-Download and extract them under `$HF_HRNET/data`, and make them look like this:
+Download and extract them under `$HRVMamba/data`, and make them look like this:
 
 ```
-HF-HRNet
+HRVMamba
 ├── configs
 ├── tools
 `── data
@@ -102,7 +106,7 @@ datasets/ade20k/ADEChallengeData2016
 ### **Human Pose Estimation on COCO**
 
 ```
-cd PoseVMamba/pose_estimation
+cd HRVMamba/pose_estimation
 
 ###Trainig
 
@@ -127,7 +131,7 @@ sh tools/dist_train.sh XXX exp_21 20338 configs/cocofinal/td-hm_hrformer-small_8
 ### **Classification on ImageNet-1K**
 
 ```
-cd PoseVMamba/classification
+cd HRVMamba/classification
 
 ###Trainig
 
@@ -159,7 +163,7 @@ cd PoseVMamba/classification
 ### **Semantic Segmentation on ADE20K**
 
 ```
-cd PoseVMamba/semantic_segmentation
+cd HRVMamba/semantic_segmentation
 
 ###Trainig
 
