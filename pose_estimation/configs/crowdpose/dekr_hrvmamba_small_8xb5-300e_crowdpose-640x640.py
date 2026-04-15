@@ -1,18 +1,13 @@
 _base_ = ['../_base_/default_runtime.py']
 
 # runtime
-train_cfg = dict(max_epochs=210, val_interval=2)
+train_cfg = dict(max_epochs=300, val_interval=5)
 
 # optimizer
-optim_wrapper = dict(
-    optimizer=dict(
-        type='AdamW',
-        lr=5e-4,
-        betas=(0.9, 0.999),
-        weight_decay=0.01,
-    ),
-    paramwise_cfg=dict(
-        custom_keys={'relative_position_bias_table': dict(decay_mult=0.)}))
+optim_wrapper = dict(optimizer=dict(
+    type='Adam',
+    lr=1e-3,
+))
 
 # learning policy
 param_scheduler = [
@@ -22,26 +17,31 @@ param_scheduler = [
     dict(
         type='MultiStepLR',
         begin=0,
-        end=210,
-        milestones=[170, 200],
+        end=300,
+        milestones=[200, 260],
         gamma=0.1,
         by_epoch=True)
 ]
 
 # automatically scaling LR based on the actual training batch size
-auto_scale_lr = dict(base_batch_size=256)
+auto_scale_lr = dict(base_batch_size=40)
 
 # hooks
-default_hooks = dict(checkpoint=dict(save_best='coco/AP', rule='greater'))
+default_hooks = dict(checkpoint=dict(save_best='crowdpose/AP', rule='greater'))
 
 # codec settings
 codec = dict(
-    type='MSRAHeatmap', input_size=(192, 256), heatmap_size=(48, 64), sigma=2)
-
-# model settings
+    type='SPR',
+    input_size=(640, 640),
+    heatmap_size=(160, 160),
+    sigma=(4, 2),
+    minimal_diagonal_length=32**0.5,
+    generate_keypoint_heatmaps=True,
+    decode_max_instances=30)
 norm_cfg = dict(type='SyncBN', requires_grad=True)
+# model settings
 model = dict(
-    type='TopdownPoseEstimator',
+    type='BottomupPoseEstimator',
     data_preprocessor=dict(
         type='PoseDataPreprocessor',
         mean=[123.675, 116.28, 103.53],
@@ -52,23 +52,22 @@ model = dict(
         in_channels=3,
         norm_cfg=norm_cfg,
         extra=dict(
-            drop_path_rate=0.0,
+            drop_path_rate=0.2,
             with_rpe=True,
             stage1=dict(
                 num_modules=1,
                 num_branches=1,
-                block='BOTTLENECK',                
+                block='BOTTLENECK',
                 num_blocks=(2, ),
-                num_channels=(32, ),
+                num_channels=(64, ),
                 num_heads=[2],
-                num_mlp_ratios=[4]
-                ),
+                num_mlp_ratios=[4]),
             stage2=dict(
                 num_modules=1,
                 num_branches=2,
                 block='HRVmambaBlock',
                 num_blocks=(2, 2),
-                num_channels=(16, 32),
+                num_channels=(32, 64),
                 # =========================
                 ssm_d_state=1,
                 ssm_ratio=2.0,
@@ -76,13 +75,13 @@ model = dict(
                 ssm_act_layer="silu",        
                 ssm_conv=3,
                 ssm_conv_bias=False,
-                ssm_drop_rate=0.0, 
+                ssm_drop_rate=0.1, 
                 ssm_init="v0",
                 forward_type="v05_noz",
                 # =========================
                 mlp_ratio=2.0,
                 mlp_act_layer="gelu",
-                mlp_drop_rate=0.0,
+                mlp_drop_rate=0.1,
                 gmlp=False,
                 # ========================= 
                 ),
@@ -91,7 +90,7 @@ model = dict(
                 num_branches=3,
                 block='HRVmambaBlock',
                 num_blocks=(2, 2, 2),
-                num_channels=(16, 32, 64),
+                num_channels=(32, 64, 128),
                 # =========================
                 ssm_d_state=1,
                 ssm_ratio=2.0,
@@ -99,13 +98,13 @@ model = dict(
                 ssm_act_layer="silu",        
                 ssm_conv=3,
                 ssm_conv_bias=False,
-                ssm_drop_rate=0.0, 
+                ssm_drop_rate=0.1, 
                 ssm_init="v0",
                 forward_type="v05_noz",
                 # =========================
                 mlp_ratio=2.0,
                 mlp_act_layer="gelu",
-                mlp_drop_rate=0.0,
+                mlp_drop_rate=0.1,
                 gmlp=False,
                 # ========================= 
                 ),
@@ -114,7 +113,7 @@ model = dict(
                 num_branches=4,
                 block='HRVmambaBlock',
                 num_blocks=(2, 2, 2, 2),
-                num_channels=(16,32, 64, 128),
+                num_channels=(32, 64, 128, 256),
                 # =========================
                 ssm_d_state=1,
                 ssm_ratio=2.0,
@@ -122,60 +121,90 @@ model = dict(
                 ssm_act_layer="silu",        
                 ssm_conv=3,
                 ssm_conv_bias=False,
-                ssm_drop_rate=0.0, 
+                ssm_drop_rate=0.1, 
                 ssm_init="v0",
                 forward_type="v05_noz",
                 # =========================
                 mlp_ratio=2.0,
                 mlp_act_layer="gelu",
-                mlp_drop_rate=0.0,
-                gmlp=False,
+                mlp_drop_rate=0.1,
+                gmlp=False,multiscale_output=True
                 # ========================= 
-                )),
+                )),        
         init_cfg=dict(
             type='Pretrained',
-            checkpoint='../pretrain_model/hrvmamba_tinynew_best.pth'),
+            checkpoint='../pretrain_model/hrvmamba_small_best.pth'),
+    ),
+    neck=dict(
+        type='FeatureMapProcessor',
+        concat=True,
     ),
     head=dict(
-        type='HeatmapHead',
-        in_channels=16,
-        out_channels=17,
-        deconv_out_channels=None,
-        loss=dict(type='KeypointMSELoss', use_target_weight=True),
-        decoder=codec),
+        type='DEKRHead',
+        in_channels=480,
+        num_keypoints=14,
+        num_heatmap_filters=48,
+        heatmap_loss=dict(type='KeypointMSELoss', use_target_weight=True),
+        displacement_loss=dict(
+            type='SoftWeightSmoothL1Loss',
+            use_target_weight=True,
+            supervise_empty=False,
+            beta=1 / 9,
+            loss_weight=0.004,
+        ),
+        decoder=codec,
+        # This rescore net is adapted from the official repo.
+        # If you are not using the original CrowdPose dataset for training,
+        # please make sure to remove the `rescore_cfg` item
+        rescore_cfg=dict(
+            in_channels=59,
+            norm_indexes=(0, 1),
+            init_cfg=dict(
+                type='Pretrained',
+                checkpoint='https://download.openmmlab.com/mmpose/'
+                'pretrain_models/kpt_rescore_crowdpose-300c7efe.pth')),
+    ),
     test_cfg=dict(
+        multiscale_test=False,
         flip_test=True,
-        flip_mode='heatmap',
+        nms_dist_thr=0.05,
         shift_heatmap=True,
-    ))
+        align_corners=False))
+
+# enable DDP training when rescore net is used
+find_unused_parameters = True
 
 # base dataset settings
-dataset_type = 'CocoDataset'
-data_mode = 'topdown'
-data_root = 'data/coco/'
+dataset_type = 'CrowdPoseDataset'
+data_mode = 'bottomup'
+data_root = 'data/crowdpose/'
 
 # pipelines
 train_pipeline = [
     dict(type='LoadImage'),
-    dict(type='GetBBoxCenterScale'),
+    dict(type='BottomupRandomAffine', input_size=codec['input_size']),
     dict(type='RandomFlip', direction='horizontal'),
-    dict(type='RandomHalfBody'),
-    dict(type='RandomBBoxTransform'),
-    dict(type='TopdownAffine', input_size=codec['input_size']),
     dict(type='GenerateTarget', encoder=codec),
-    dict(type='PackPoseInputs')
+    dict(type='PackPoseInputs'),
 ]
-
 val_pipeline = [
     dict(type='LoadImage'),
-    dict(type='GetBBoxCenterScale'),
-    dict(type='TopdownAffine', input_size=codec['input_size']),
-    dict(type='PackPoseInputs')
+    dict(
+        type='BottomupResize',
+        input_size=codec['input_size'],
+        size_factor=32,
+        resize_mode='expand'),
+    dict(
+        type='PackPoseInputs',
+        meta_keys=('id', 'img_id', 'img_path', 'crowd_index', 'ori_shape',
+                   'img_shape', 'input_size', 'input_center', 'input_scale',
+                   'flip', 'flip_direction', 'flip_indices', 'raw_ann_info',
+                   'skeleton_links'))
 ]
 
 # data loaders
 train_dataloader = dict(
-    batch_size=128,
+    batch_size=8,
     num_workers=2,
     persistent_workers=True,
     sampler=dict(type='DefaultSampler', shuffle=True),
@@ -183,12 +212,12 @@ train_dataloader = dict(
         type=dataset_type,
         data_root=data_root,
         data_mode=data_mode,
-        ann_file='annotations/person_keypoints_train2017.json',
-        data_prefix=dict(img='train2017/'),
+        ann_file='annotations/mmpose_crowdpose_trainval.json',
+        data_prefix=dict(img='images/'),
         pipeline=train_pipeline,
     ))
 val_dataloader = dict(
-    batch_size=128,
+    batch_size=1,
     num_workers=2,
     persistent_workers=True,
     drop_last=False,
@@ -197,10 +226,8 @@ val_dataloader = dict(
         type=dataset_type,
         data_root=data_root,
         data_mode=data_mode,
-        ann_file='annotations/person_keypoints_val2017.json',
-        bbox_file='data/coco/person_detection_results/'
-        'COCO_val2017_detections_AP_H_56_person.json',
-        data_prefix=dict(img='val2017/'),
+        ann_file='annotations/mmpose_crowdpose_test.json',
+        data_prefix=dict(img='images/'),
         test_mode=True,
         pipeline=val_pipeline,
     ))
@@ -209,8 +236,10 @@ test_dataloader = val_dataloader
 # evaluators
 val_evaluator = dict(
     type='CocoMetric',
-    ann_file=data_root + 'annotations/person_keypoints_val2017.json')
+    ann_file=data_root + 'annotations/mmpose_crowdpose_test.json',
+    nms_mode='none',
+    score_mode='keypoint',
+    use_area=False,
+    iou_type='keypoints_crowd',
+    prefix='crowdpose')
 test_evaluator = val_evaluator
-
-# fp16 settings
-fp16 = dict(loss_scale='dynamic')

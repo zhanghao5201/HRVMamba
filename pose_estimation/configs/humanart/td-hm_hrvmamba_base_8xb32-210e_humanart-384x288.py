@@ -1,7 +1,7 @@
 _base_ = ['../_base_/default_runtime.py']
 
 # runtime
-train_cfg = dict(max_epochs=210, val_interval=2)
+train_cfg = dict(max_epochs=210, val_interval=1)
 
 # optimizer
 optim_wrapper = dict(
@@ -36,7 +36,7 @@ default_hooks = dict(checkpoint=dict(save_best='coco/AP', rule='greater'))
 
 # codec settings
 codec = dict(
-    type='MSRAHeatmap', input_size=(192, 256), heatmap_size=(48, 64), sigma=2)
+    type='MSRAHeatmap', input_size=(288, 384), heatmap_size=(72, 96), sigma=3)
 
 # model settings
 norm_cfg = dict(type='SyncBN', requires_grad=True)
@@ -52,23 +52,22 @@ model = dict(
         in_channels=3,
         norm_cfg=norm_cfg,
         extra=dict(
-            drop_path_rate=0.0,
+            drop_path_rate=0.6,
             with_rpe=True,
             stage1=dict(
                 num_modules=1,
                 num_branches=1,
-                block='BOTTLENECK',                
+                block='BOTTLENECK',
                 num_blocks=(2, ),
-                num_channels=(32, ),
+                num_channels=(64, ),
                 num_heads=[2],
-                num_mlp_ratios=[4]
-                ),
+                mlp_ratios=[4]),
             stage2=dict(
                 num_modules=1,
                 num_branches=2,
                 block='HRVmambaBlock',
                 num_blocks=(2, 2),
-                num_channels=(16, 32),
+                num_channels=(80, 160),
                 # =========================
                 ssm_d_state=1,
                 ssm_ratio=2.0,
@@ -76,22 +75,23 @@ model = dict(
                 ssm_act_layer="silu",        
                 ssm_conv=3,
                 ssm_conv_bias=False,
-                ssm_drop_rate=0.0, 
+                ssm_drop_rate=0.2, 
                 ssm_init="v0",
                 forward_type="v05_noz",
                 # =========================
                 mlp_ratio=2.0,
                 mlp_act_layer="gelu",
-                mlp_drop_rate=0.0,
+                mlp_drop_rate=0.2,
                 gmlp=False,
-                # ========================= 
+                # =========================         
                 ),
             stage3=dict(
                 num_modules=4,
                 num_branches=3,
                 block='HRVmambaBlock',
                 num_blocks=(2, 2, 2),
-                num_channels=(16, 32, 64),
+                num_channels=(80, 160, 320),
+                
                 # =========================
                 ssm_d_state=1,
                 ssm_ratio=2.0,
@@ -99,22 +99,23 @@ model = dict(
                 ssm_act_layer="silu",        
                 ssm_conv=3,
                 ssm_conv_bias=False,
-                ssm_drop_rate=0.0, 
+                ssm_drop_rate=0.2, 
                 ssm_init="v0",
                 forward_type="v05_noz",
                 # =========================
                 mlp_ratio=2.0,
                 mlp_act_layer="gelu",
-                mlp_drop_rate=0.0,
+                mlp_drop_rate=0.2,
                 gmlp=False,
-                # ========================= 
+                # =========================         
                 ),
             stage4=dict(
                 num_modules=2,
                 num_branches=4,
                 block='HRVmambaBlock',
                 num_blocks=(2, 2, 2, 2),
-                num_channels=(16,32, 64, 128),
+                num_channels=(80, 160, 320, 640),
+               
                 # =========================
                 ssm_d_state=1,
                 ssm_ratio=2.0,
@@ -122,23 +123,23 @@ model = dict(
                 ssm_act_layer="silu",        
                 ssm_conv=3,
                 ssm_conv_bias=False,
-                ssm_drop_rate=0.0, 
+                ssm_drop_rate=0.2, 
                 ssm_init="v0",
                 forward_type="v05_noz",
                 # =========================
                 mlp_ratio=2.0,
                 mlp_act_layer="gelu",
-                mlp_drop_rate=0.0,
+                mlp_drop_rate=0.2,
                 gmlp=False,
-                # ========================= 
+                # =========================         
                 )),
         init_cfg=dict(
             type='Pretrained',
-            checkpoint='../pretrain_model/hrvmamba_tinynew_best.pth'),
+            checkpoint='../pretrain_model/hrvmamba_base_best.pth'),
     ),
     head=dict(
         type='HeatmapHead',
-        in_channels=16,
+        in_channels=80,
         out_channels=17,
         deconv_out_channels=None,
         loss=dict(type='KeypointMSELoss', use_target_weight=True),
@@ -150,9 +151,9 @@ model = dict(
     ))
 
 # base dataset settings
-dataset_type = 'CocoDataset'
+data_root = 'data/'
+dataset_type = 'HumanArtDataset'
 data_mode = 'topdown'
-data_root = 'data/coco/'
 
 # pipelines
 train_pipeline = [
@@ -175,7 +176,7 @@ val_pipeline = [
 
 # data loaders
 train_dataloader = dict(
-    batch_size=128,
+    batch_size=32,
     num_workers=2,
     persistent_workers=True,
     sampler=dict(type='DefaultSampler', shuffle=True),
@@ -188,8 +189,8 @@ train_dataloader = dict(
         pipeline=train_pipeline,
     ))
 val_dataloader = dict(
-    batch_size=128,
-    num_workers=2,
+    batch_size=32,
+    num_workers=4,
     persistent_workers=True,
     drop_last=False,
     sampler=dict(type='DefaultSampler', shuffle=False, round_up=False),
@@ -197,10 +198,10 @@ val_dataloader = dict(
         type=dataset_type,
         data_root=data_root,
         data_mode=data_mode,
-        ann_file='annotations/person_keypoints_val2017.json',
-        bbox_file='data/coco/person_detection_results/'
-        'COCO_val2017_detections_AP_H_56_person.json',
-        data_prefix=dict(img='val2017/'),
+        ann_file='HumanArt/annotations/validation_humanart.json',
+        bbox_file=f'{data_root}HumanArt/person_detection_results/'
+        'HumanArt_validation_detections_AP_H_56_person.json',
+        data_prefix=dict(img=''),
         test_mode=True,
         pipeline=val_pipeline,
     ))
@@ -209,8 +210,5 @@ test_dataloader = val_dataloader
 # evaluators
 val_evaluator = dict(
     type='CocoMetric',
-    ann_file=data_root + 'annotations/person_keypoints_val2017.json')
+    ann_file=data_root + 'HumanArt/annotations/validation_humanart.json')
 test_evaluator = val_evaluator
-
-# fp16 settings
-fp16 = dict(loss_scale='dynamic')

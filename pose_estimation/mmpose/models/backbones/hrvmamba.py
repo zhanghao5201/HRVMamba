@@ -912,7 +912,7 @@ class HRVmamba(HRNet):
             else:
                 reset_multiscale_output = True
             modules.append(
-                HR_VmambaModule(
+                HRVmambaModule(
                     num_branches,
                     block,
                     num_blocks,

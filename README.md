@@ -10,10 +10,8 @@ About the repo for paper: HRVMamba: Efficient High-Resolution Visual Representat
 Capturing long-range dependencies while preserving high-resolution visual representations is crucial for dense prediction tasks such as human pose estimation. Vision Transformers (ViTs) have advanced global modeling through self-attention but suffer from quadratic computational complexity with respect to the token count, limiting their efficiency and scalability for high-resolution representations, especially on mobile and resource-constrained devices.
 State Space Models (SSMs), exemplified by Mamba, offer an efficient alternative by combining global receptive fields with linear computational complexity, enabling scalable and computationally efficient sequence modeling. 
 However, when applied to dense prediction tasks, existing visual SSMs face several key limitations: weak spatial inductive bias, long-range forgetting caused by hidden state decay, and low-resolution feature outputs that hinder fine-grained prediction.
-To address these issues, we propose the Dynamic Visual State Space (DVSS) block, 
-which augments visual state space models with multi-scale convolutions and deformable operations. Multi-scale convolutions strengthen spatial inductive bias and enhance local feature extraction. 
-Through architectural exploration and theoretical analysis, we identify deformable operations as an effective mechanism for aggregating distant yet relevant features, thereby mitigating long-range forgetting.
-DVSS is then embedded into a multi-branch high-resolution architecture to build \textbf{HRVMamba}, enabling efficient high-resolution representation learning.
+To address these issues, we propose the Dynamic Visual State Space (DVSS) block, which augments visual state space models with the Enhanced Spatial Inductive Bias (ESInB) block and the Deformable 2D-Selective-Scan (DSS2D) block. The ESInB block adopts multi-scale convolutions to strengthen spatial inductive bias and improve local spatial modeling. Through architectural exploration and theoretical analysis, we further identify deformable operations in the DSS2D block as an effective mechanism for aggregating distant yet relevant features, thereby mitigating long-range forgetting.
+DVSS is then embedded into a multi-branch high-resolution architecture to build HRVMamba, enabling efficient high-resolution representation learning.
 Extensive experiments on human pose estimation, image classification, and semantic segmentation demonstrate that HRVMamba performs competitively against leading CNN-, ViT-, and SSM-based baselines.
 
 ## Getting Started
@@ -41,7 +39,9 @@ python setup.py build install
 It is recommended to symlink the dataset root to `$HRVMamba/data`.
 If your folder structure is different, you may need to change the corresponding paths in config files.
 
-**For COCO data**, please download from [COCO download](http://cocodataset.org/#download), 2017 Train/Val is needed for COCO keypoints training and validation. [HRNet-Human-Pose-Estimation](https://github.com/HRNet/HRNet-Human-Pose-Estimation) provides person detection result of COCO val2017 to reproduce our multi-person pose estimation results. Please download from [OneDrive](https://1drv.ms/f/s!AhIXJn_J-blWzzDXoz5BeFl8sWM-)
+**For COCO, CrowdPose and Human-Art**, please download from [COCO download](http://cocodataset.org/#download), 2017 Train/Val is needed for COCO keypoints training and validation. [HRNet-Human-Pose-Estimation](https://github.com/HRNet/HRNet-Human-Pose-Estimation) provides person detection result of COCO val2017 to reproduce our multi-person pose estimation results. Please download from [OneDrive](https://1drv.ms/f/s!AhIXJn_J-blWzzDXoz5BeFl8sWM-),
+please download from [CrowdPose download](https://github.com/jeffffffli/CrowdPose),
+please download from [Human-Art download](https://forms.gle/UVv1GiNJNQsE4qif7).
 Download and extract them under `$HRVMamba/data`, and make them look like this:
 
 ```
@@ -65,6 +65,30 @@ HRVMamba
             │-- 000000000285.jpg
             │-- 000000000632.jpg
             │-- ...
+    │── crowdpose
+        │-- annotations
+        │   │-- mmpose_crowdpose_trainval.json
+        │   |-- mmpose_crowdpose_test.json
+        │   |-- det_for_crowd_test_0.1_0.5.json
+        `-- images
+            │-- 100000.jpg
+            │-- 100001.jpg
+            │-- 100002.jpg
+            │-- ...
+    │── HumanArt
+        │-- annotations
+        │   │-- training_humanart_coco.json
+        │   |-- validation_humanart.json
+        │   |-- det_for_crowd_test_0.1_0.5.json
+        │-- person_detection_results
+        │   │-- HumanArt_validation_detections_AP_H_56_person.json
+        `-- images
+            |-- 2D_virtual_human
+                |-- ...
+            |-- 3D_virtual_human
+                |-- ...
+            |-- real_human
+                |-- ...                   
 
 ```
 
@@ -127,6 +151,32 @@ sh tools/dist_train.sh XXX exp_21 20338 configs/cocofinal/td-hm_hrformer-small_8
 #sh tools/dist_test.sh XXX exp_23 20632 configs/cocofinal/td-hm_hrvmamba_tiny_8xb32-210e_coco-256x192.py pretrain_model/hrvmamba_tiny256192.pth 8 
 #sh tools/dist_test.sh XXX exp_23 20632 configs/cocofinal/td-hm_hrformer-tiny_8xb32-210e_coco-256x192.py  pretrain_model/hrformer_tiny256192.pth 8
 ```
+### **Human Pose Estimation on CrowdPose**
+
+```
+cd HRVMamba/pose_estimation
+
+###Trainig
+
+sh tools/dist_train.sh XXX exp_21 20338 configs/crowdpose/dekr_hrvmamba_base_8xb5-300e_crowdpose-640x640.py 8
+sh tools/dist_train.sh XXX exp_21 20338 configs/crowdpose/dekr_hrvmamba_small_8xb5-300e_crowdpose-640x640.py 8
+
+###Testing
+
+#sh tools/dist_test.sh XXX exp_23 20632 configs/crowdpose/dekr_hrvmamba_base_8xb5-300e_crowdpose-640x640.py pretrain_model/hrvmamba_base_best_crowdpose.pth 8 
+#sh tools/dist_test.sh XXX exp_23 20632 configs/crowdpose/dekr_hrvmamba_small_8xb5-300e_crowdpose-640x640.py pretrain_model/hrvmamba_small_best_crowdpose.pth 8
+```
+
+### **Human Pose Estimation on Human-Art**
+
+```
+cd HRVMamba/pose_estimation
+
+###Testing
+
+#sh tools/dist_test.sh XXX exp_23 20632 configs/humanart/td-hm_hrvmamba_base_8xb32-210e_humanart-384x288.py pretrain_model/hrvmamba_base384288.pth 8 
+#sh tools/dist_test.sh XXX exp_23 20632 configs/humanart/td-hm_hrvmamba_small_8xb32-210e_humanart-384x288.py pretrain_model/hrvmamba_small384288.pth 8
+```
 
 ### **Classification on ImageNet-1K**
 
@@ -183,7 +233,7 @@ cd HRVMamba/semantic_segmentation
 |  HRFormer-Tiny |   256x192  |     2     |    1.1    | 68.3 |   [ckpt](https://drive.google.com/file/d/1hS_IuLcLIAdryramUoCOLL-5tNS9gLp7/view?usp=sharing)  |
 | HRFormer-Small |   256x192  |     8     |    3.3    | 74.0 |                                               -                                            |
 |  HRFormer-Base |   224x192  |     43    |    14.1   | 75.6 |                                               -                                            |
-|  HRVMamba-Tiny |   256x192  |     2     |    1.1    | 69.5 |   [ckpt](https://drive.google.com/file/d/1w1wYEUL6dS3KYMeAX3XV7O1Vnz-IATDw/view?usp=sharing)  |
+|  HRVMamba-Tiny |   256x192  |     2     |    1.1    | 69.5 |   [ckpt](https://drive.google.com/file/d/1cj6VPnSiyCDQHuDEZIIytyEQO-Xr-pPO/view?usp=sharing)  |
 | HRVMamba-Small |   256x192  |     8     |    3.3    | 74.6 |   [ckpt](https://drive.google.com/file/d/1L3CO3D4L1Q1galRaSC82taDDqFqmukKt/view?usp=sharing)  |
 |  HRVMamba-Base |   256x192  |     47    |    14.2   | 76.5 |   [ckpt](https://drive.google.com/file/d/14JE7v6jdxtJaEMJCatqbmuhLkfBYVBOX/view?usp=sharing)  |
 
@@ -194,6 +244,12 @@ cd HRVMamba/semantic_segmentation
 | HRVMamba-Small |   384x288  |     8     |    7.4    | 76.4 |   [ckpt](https://drive.google.com/file/d/1aqkUoQog4hl1dSbkUkwQvlwgistpxtzQ/view?usp=sharing)  |
 |  HRVMamba-Base |   384x288  |     47    |    32.0   | 77.7 |   [ckpt](https://drive.google.com/file/d/161d_LhWBBvBOSXxPBGRBNCjYr8PP0w9c/view?usp=sharing)  |
 
+### **Human Pose Estimation on CrowdPose**
+|      Model     | Input Size | Param (M) | FLOPs (G) |  AP  |                                             ckpts                                             |
+|:--------------:|:----------:|:---------:|:---------:|:----:|:-----------------------------------------------------------------------------------------------:|
+| HRVMamba-Small |   640x640  |     9     |    33.1   | 68.8 |   [ckpt](https://drive.google.com/file/d/1J4OoX8QeclHUGeBOTU8twPX8T7DYZ2EV/view?usp=sharing)  |
+|  HRVMamba-Base |   640x640  |     49    |    129.6  | 69.6 |   [ckpt](https://drive.google.com/file/d/1Xbuj1-NWg9ivCzUFaLUGc-eQp0d0146j/view?usp=sharing)  |
+
 ### **Classification on ImageNet-1K**
 |      Model     | Input Size | Param (M) | FLOPs (G) | Top-1 Acc |                                              ckpts                                         |
 |:--------------:|:----------:|:---------:|:---------:|:---------:|:------------------------------------------------------------------------------------------:|
@@ -201,8 +257,8 @@ cd HRVMamba/semantic_segmentation
 |  HRFormer-Tiny |   256x256  |     14    |    2.8    |    77.8   | [ckpt](https://drive.google.com/file/d/1qm3tCOxHRTRY1CpETxNSQ11MFlrPYOkx/view?usp=sharing) |
 | HRFormer-Small |   256x256  |     20    |    6.1    |    80.8   | [ckpt](https://drive.google.com/file/d/1Tk7GFEJsanWsN6dEZNoh8jLqWsKBKUhA/view?usp=sharing) |
 |  HRFormer-Base |   224x224  |     57    |    14.5   |    83.3   | [ckpt](https://drive.google.com/file/d/15Mnr4xTXwok9NiCEkIq47WosvQO3NoR5/view?usp=sharing) |
-|  HRVMamba-Nano |   256x256  |     12    |    1.9    |    74.8   | [ckpt](https://drive.google.com/file/d/1aGN51e9tgMTdDDWm0wwCmGibAksp2QJ6/view?usp=sharing) |
-|  HRVMamba-Tiny |   256x256  |     14    |    2.8    |    78.6   | [ckpt](https://drive.google.com/file/d/1Vn-ZXzvx3Hrv_C2tDQWrOjtA9WxTvWaa/view?usp=sharing) |
+|  HRVMamba-Nano |   256x256  |     12    |    1.9    |    74.8   | [ckpt](https://drive.google.com/file/d/1vjoEmX8NGh3D4aIB2zTP6eKN23zXmd7i/view?usp=sharing) |
+|  HRVMamba-Tiny |   256x256  |     14    |    2.8    |    78.6   | [ckpt](https://drive.google.com/file/d/18MnK9b-Ip7RLevdAzzPBFNIe_BNHg2Ry/view?usp=sharing) |
 | HRVMamba-Small |   256x256  |     20    |    5.8    |    81.3   | [ckpt](https://drive.google.com/file/d/1Gxo0Pxg2D7x3dU0P2AZ2YGEFS-7XMxIX/view?usp=sharing) |
 |  HRVMamba-Base |   224x224  |     61    |    15.8   |    84.2   | [ckpt](https://drive.google.com/file/d/1jbXjvCBdjgraeEaJrDjD2wStpxJtCEuy/view?usp=sharing) |
 
